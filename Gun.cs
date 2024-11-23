@@ -19,7 +19,7 @@ class Bullet
 
     public void Move() { }
 
-    private void Collision(Player other)
+    public void Collision(Player other)
     {
         other.TakeDamage(_damage);
     }
