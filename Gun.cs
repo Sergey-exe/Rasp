@@ -1,6 +1,6 @@
 class Weapon
 {
-    private List<Bullet> _bullets;
+    private readonly List<Bullet> _bullets;
 
     public void Fire()
     {
@@ -43,7 +43,7 @@ class Player
 
 class Bot
 {
-    private Weapon _weapon;
+    private readonly Weapon _weapon;
 
     public void OnSeePlayer()
     {
