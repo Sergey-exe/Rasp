@@ -15,7 +15,7 @@ class Weapon
 
 class Bullet
 {
-    private int _damage;
+    private readonly int _damage;
 
     public void Move() { }
 
