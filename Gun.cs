@@ -1,41 +1,65 @@
-class Weapon
-{
-    private int _damage;
-    private int _countBullets;
+using System;
+using System.Collections.Generic;
 
-    public void Fire(Player player)
+namespace Test_console_project
+{
+    internal class Program
     {
-        if (_countBullets == 0)
-            return;
+        static void Main(string[] args)
+        {
+        }
+
+        class Weapon
+        {
+            private List<Bullet> _bullets;
+
+            public void Fire()
+            {
+                if (_bullets.Count == 0)
+                    return;
 
 
-        _countBullets--;
-        player.TakeDamage(_damage);
-    }
-}
+                _bullets[0].Move();
+                _bullets.RemoveAt(0);
+            }
+        }
 
-class Player
-{
-    private int _health;
+        class Bullet
+        {
+            private int _damage;
 
-    public void TakeDamage(int damage) 
-    { 
-        if (damage < 0)
-            damage = 0;
+            public void Move() { }
 
-        _health -= damage;
+            public void Collision(Player other)
+            {
+                other.TakeDamage(_damage);
+            }
+        }
 
-        if (_health < 0)
-            _health = 0;
-    }
-}
+        class Player
+        {
+            private int _health;
 
-class Bot
-{
-    private Weapon _weapon;
+            public void TakeDamage(int damage) 
+            { 
+                if (damage < 0)
+                    damage = 0;
 
-    public void OnSeePlayer(Player player)
-    {
-        _weapon.Fire(player);
+                _health -= damage;
+
+                if (_health < 0)
+                    _health = 0;
+            }
+        }
+
+        class Bot
+        {
+            private Weapon _weapon;
+
+            public void OnSeePlayer()
+            {
+                _weapon.Fire();
+            }
+        }
     }
 }
