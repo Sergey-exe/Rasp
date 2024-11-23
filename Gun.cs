@@ -2,6 +2,11 @@ class Weapon
 {
     private List<Bullet> _bullets;
 
+    public Weapon(List<Bullet> _bullets)
+    {
+        _bullets = bullets;
+    }
+
     public void Fire()
     {
         if (_bullets.Count == 0)
@@ -44,6 +49,11 @@ class Player
 class Bot
 {
     private readonly Weapon _weapon;
+
+    public Player(Weapon weapon)
+    {
+        _weapon = weapon;
+    }
 
     public void OnSeePlayer()
     {
