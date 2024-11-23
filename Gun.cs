@@ -1,6 +1,6 @@
 class Weapon
 {
-    private readonly List<Bullet> _bullets;
+    private List<Bullet> _bullets;
 
     public void Fire()
     {
