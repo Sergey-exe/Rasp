@@ -1,32 +1,14 @@
+using System;
+
 class Weapon
 {
-    private List<Bullet> _bullets;
-
-    public Weapon(List<Bullet> _bullets)
-    {
-        _bullets = bullets;
-    }
-
-    public void Fire()
-    {
-        if (_bullets.Count == 0)
-            return;
-
-
-        _bullets[0].Move();
-        _bullets.RemoveAt(0);
-    }
-}
-
-class Bullet
-{
     private readonly int _damage;
+    private int _countBullets;
 
-    public void Move() { }
-
-    public void Collision(Player other)
+    public void Fire(Player player)
     {
-        other.TakeDamage(_damage);
+        player.TakeDamage(_damage);
+        _countBullets--;
     }
 }
 
@@ -34,15 +16,12 @@ class Player
 {
     private int _health;
 
-    public void TakeDamage(int damage) 
-    { 
-        if (damage < 0)
-            damage = 0;
+    public void TakeDamage(int damage)
+    {
+        damage = Math.Max(0, damage);
 
         _health -= damage;
-
-        if (_health < 0)
-            _health = 0;
+        _health = Math.Max(0, _health);
     }
 }
 
@@ -50,13 +29,8 @@ class Bot
 {
     private readonly Weapon _weapon;
 
-    public Player(Weapon weapon)
+    public void OnSeePlayer(Player player)
     {
-        _weapon = weapon;
-    }
-
-    public void OnSeePlayer()
-    {
-        _weapon.Fire();
+        _weapon.Fire(player);
     }
 }
