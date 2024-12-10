@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 internal class Program
@@ -18,15 +18,15 @@ internal class Program
         warehouse.ShowInfo(); //Вывод всех товаров на складе с их остатком
 
         Cart cart = shop.GetCart();
-        shop.AddElementInCart(iPhone12, 4);
-        shop.AddElementInCart(iPhone11, 3); //при такой ситуации возникает ошибка так, как нет нужного количества товара на складе
+        cart.Add(iPhone12, 10);
+        cart.Add(iPhone11, 3); //при такой ситуации возникает ошибка так, как нет нужного количества товара на складе
 
         //Вывод всех товаров в корзине
         cart.ShowInfo();
 
         //Console.WriteLine(cart.Order().Paylink);
 
-        shop.AddElementInCart(iPhone12, 9); //Ошибка, после заказа со склада убираются заказанные товары
+        cart.Add(iPhone12, 9); //Ошибка, после заказа со склада убираются заказанные товары
     }
 
     public class Shop
@@ -40,17 +40,8 @@ internal class Program
             if (warehouse == null)
                 throw new ArgumentNullException();
 
-            _cart = new Cart();
             _warehouse = warehouse;
-        }
-
-        public void AddElementInCart(Good good, int countGoods)
-        {
-            if (good == null)
-                throw new ArgumentNullException();
-
-            for (int i = 0; i < countGoods; i++)
-                _cart.Add(_warehouse.GetGood(good.Name));
+            _cart = new Cart(_warehouse);
         }
 
         public Cart GetCart()
@@ -61,61 +52,101 @@ internal class Program
 
     public class Warehouse
     {
-        private List<Good> _goods;
+        private Dictionary<Good, int> _catalogGoods;
+
+        public IReadOnlyDictionary<Good, int> Goods => _catalogGoods;
 
         public Warehouse()
         {
-            _goods = new List<Good>();
-        }
-
-        public Good GetGood(string goodName)
-        {
-            Good gettingGood;
-
-            foreach (Good good in _goods)
-            {
-                if(good.Name == goodName)
-                {
-                    gettingGood = good;
-                    _goods.Remove(good);
-                    return gettingGood;
-                }
-            }
-
-            throw new ArgumentNullException();
+            _catalogGoods = new Dictionary<Good, int>();
         }
 
         public void ShowInfo()
         {
-            foreach (Good good in _goods)
-                Console.WriteLine(good.Name);
+            foreach (var good in _catalogGoods)
+                Console.WriteLine($"{good.Key.Name}, {good.Value} шт.");
         }
 
         public void Delive(Good good, int countNewGoods)
         {
-            if(good == null) 
+            if (good == null)
                 throw new ArgumentNullException();
 
             for (int i = 0; i < countNewGoods; i++)
-                _goods.Add(good);
+            {
+                if (_catalogGoods.ContainsKey(good))
+                {
+                    _catalogGoods[good]++;
+                }
+                else
+                {
+                    _catalogGoods.Add(good, 1);
+                }
+            }
+        }
+
+        public List<Good> ByProduct(Good good, int countProducts)
+        {
+            if (good == null)
+                throw new ArgumentNullException();
+
+            List<Good> gettingProducts = new List<Good>();
+
+            if(IsProductInWarehouse(good, countProducts))
+            {
+                for (int i = 0; i <= countProducts; i++)
+                {
+                    gettingProducts.Add(good);
+                }
+
+                _catalogGoods[good] -= countProducts;
+
+
+                if (countProducts == 0)
+                    _catalogGoods.Remove(good);
+
+                return gettingProducts;
+            }
+            
+            throw new ArgumentNullException();
+        }
+
+        private bool IsProductInWarehouse(Good good, int countProducts)
+        {
+            if (good == null)
+                throw new ArgumentNullException();
+
+            if (_catalogGoods.ContainsKey(good) == false)
+                return false;
+
+            if (_catalogGoods[good] >= countProducts)
+                return true;
+
+            return false;
         }
     }
 
     public class Cart
     {
+        private Warehouse _warehouse;
+
         private List<Good> _goods;
 
-        public Cart() 
+        public Cart(Warehouse warehouse) 
         { 
+            if (warehouse == null)
+                throw new ArgumentNullException();
+
+            _warehouse = warehouse;
             _goods = new List<Good>();
         }
 
-        public void Add(Good good)
+        public void Add(Good good, int countProduct)
         {
             if (good == null)
                 throw new ArgumentNullException();
 
-            _goods.Add(good);
+            _goods.AddRange(_warehouse.ByProduct(good, countProduct));
         }
 
         public void ShowInfo()
