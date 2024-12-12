@@ -5,8 +5,8 @@ internal class Program
 {
     private static void Main(string[] args)
     {
-        Good iPhone12 = new Good("IPhone 12");
-        Good iPhone11 = new Good("IPhone 11");
+        Product iPhone12 = new Product("IPhone 12");
+        Product iPhone11 = new Product("IPhone 11");
 
         Warehouse warehouse = new Warehouse();
 
@@ -21,10 +21,9 @@ internal class Program
         cart.Add(iPhone12, 10);
         cart.Add(iPhone11, 3); //при такой ситуации возникает ошибка так, как нет нужного количества товара на складе
 
-        //Вывод всех товаров в корзине
-        cart.ShowInfo();
+        cart.ShowInfo(); //Вывод всех товаров в корзине
 
-        //Console.WriteLine(cart.Order().Paylink);
+        Console.WriteLine(cart.Order().Paylink);
 
         cart.Add(iPhone12, 9); //Ошибка, после заказа со склада убираются заказанные товары
     }
@@ -50,15 +49,22 @@ internal class Program
         }
     }
 
-    public class Warehouse
+    public interface IProductSale
     {
-        private Dictionary<Good, int> _catalogGoods;
+        bool IsProductsInWarehouse(Product good, int countProducts);
 
-        public IReadOnlyDictionary<Good, int> Goods => _catalogGoods;
+        List<Product> ByProduct(Product good);
+    }
+
+    public class Warehouse : IProductSale
+    {
+        private Dictionary<Product, int> _catalogGoods;
+
+        public IReadOnlyDictionary<Product, int> Goods => _catalogGoods;
 
         public Warehouse()
         {
-            _catalogGoods = new Dictionary<Good, int>();
+            _catalogGoods = new Dictionary<Product, int>();
         }
 
         public void ShowInfo()
@@ -67,42 +73,36 @@ internal class Program
                 Console.WriteLine($"{good.Key.Name}, {good.Value} шт.");
         }
 
-        public void Delive(Good good, int countNewGoods)
+        public void Delive(Product good, int countNewGoods)
         {
             if (good == null)
                 throw new ArgumentNullException();
 
-            for (int i = 0; i < countNewGoods; i++)
+            if (_catalogGoods.ContainsKey(good))
             {
-                if (_catalogGoods.ContainsKey(good))
-                {
-                    _catalogGoods[good]++;
-                }
-                else
-                {
-                    _catalogGoods.Add(good, 1);
-                }
+                _catalogGoods[good] += countNewGoods;
+            }
+            else
+            {
+                _catalogGoods.Add(good, countNewGoods);
             }
         }
 
-        public List<Good> ByProduct(Good good, int countProducts)
+        public List<Product> ByProduct(Product good)
         {
             if (good == null)
                 throw new ArgumentNullException();
 
-            List<Good> gettingProducts = new List<Good>();
+            List<Product> gettingProducts = new List<Product>();
 
-            if(IsProductInWarehouse(good, countProducts))
+            if(IsProductsInWarehouse(good, 1))
             {
-                for (int i = 0; i <= countProducts; i++)
-                {
-                    gettingProducts.Add(good);
-                }
+                gettingProducts.Add(good);
 
-                _catalogGoods[good] -= countProducts;
+                _catalogGoods[good]--;
 
 
-                if (countProducts == 0)
+                if (_catalogGoods[good] == 0)
                     _catalogGoods.Remove(good);
 
                 return gettingProducts;
@@ -111,58 +111,87 @@ internal class Program
             throw new ArgumentNullException();
         }
 
-        private bool IsProductInWarehouse(Good good, int countProducts)
+        public bool IsProductsInWarehouse(Product good, int countProducts)
         {
             if (good == null)
                 throw new ArgumentNullException();
 
-            if (_catalogGoods.ContainsKey(good) == false)
+            if(_catalogGoods.TryGetValue(good, out int count) == false)
                 return false;
 
-            if (_catalogGoods[good] >= countProducts)
-                return true;
+            if (count < countProducts)
+                return false;
 
-            return false;
+            return true;
         }
     }
 
     public class Cart
     {
-        private Warehouse _warehouse;
+        private IProductSale _warehouse;
+        private List<Product> _goods;
 
-        private List<Good> _goods;
-
-        public Cart(Warehouse warehouse) 
+        public Cart(IProductSale warehouse) 
         { 
             if (warehouse == null)
                 throw new ArgumentNullException();
 
             _warehouse = warehouse;
-            _goods = new List<Good>();
+            _goods = new List<Product>();
         }
 
-        public void Add(Good good, int countProduct)
+        public void Add(Product good, int countProduct)
         {
             if (good == null)
                 throw new ArgumentNullException();
 
-            _goods.AddRange(_warehouse.ByProduct(good, countProduct));
+            if (_warehouse.IsProductsInWarehouse(good, countProduct))
+                for (int i = 0; i < countProduct; i++)
+                    _goods.Add(good);
+            else
+                Console.WriteLine("Отсутствуют необходимые продукты на складе!");
+        }
+
+        public OrderInfo Order()
+        {
+            foreach (Product product in _goods)
+                _warehouse.ByProduct(product);
+
+            return new OrderInfo();
         }
 
         public void ShowInfo()
         {
-            foreach (Good good in _goods)
+            foreach (Product good in _goods)
                 Console.WriteLine(good.Name);
         }
     }
 
-    public class Good
+    public class Product
     {
         public readonly string Name;
 
-        public Good(string name)
+        public Product(string name)
         {
+            if(name == null) 
+                throw new ArgumentNullException();
+
             Name = name;
+        }
+    }
+
+    public class OrderInfo
+    {
+        private const int _minNumber = 10000;
+        private const int _maxNumber = 99999;
+
+        public readonly string Paylink;
+
+        public OrderInfo() 
+        {
+            Random random = new Random();
+
+            Paylink = $"Заказ готов! Ваш номер: {random.Next(_minNumber, _maxNumber)}";
         }
     }
 }
