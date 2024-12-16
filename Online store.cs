@@ -53,14 +53,12 @@ internal class Program
     {
         bool IsProductsInWarehouse(Product good, int countProducts);
 
-        List<Product> ByProduct(Product good);
+        void ByProduct(Product good);
     }
 
     public class Warehouse : IProductSale
     {
         private Dictionary<Product, int> _catalogGoods;
-
-        public IReadOnlyDictionary<Product, int> Goods => _catalogGoods;
 
         public Warehouse()
         {
@@ -88,7 +86,7 @@ internal class Program
             }
         }
 
-        public List<Product> ByProduct(Product good)
+        public void ByProduct(Product good)
         {
             if (good == null)
                 throw new ArgumentNullException();
@@ -105,7 +103,7 @@ internal class Program
                 if (_catalogGoods[good] == 0)
                     _catalogGoods.Remove(good);
 
-                return gettingProducts;
+                return;
             }
             
             throw new ArgumentNullException();
@@ -145,11 +143,11 @@ internal class Program
             if (good == null)
                 throw new ArgumentNullException();
 
-            if (_warehouse.IsProductsInWarehouse(good, countProduct))
+            if (_warehouse.IsProductsInWarehouse(good, countProduct) == false)
+                throw new ArgumentNullException();
+            else
                 for (int i = 0; i < countProduct; i++)
                     _goods.Add(good);
-            else
-                Console.WriteLine("Отсутствуют необходимые продукты на складе!");
         }
 
         public OrderInfo Order()
@@ -169,7 +167,7 @@ internal class Program
 
     public class Product
     {
-        public readonly string Name;
+        public string Name { get; private set; }
 
         public Product(string name)
         {
@@ -185,7 +183,7 @@ internal class Program
         private const int _minNumber = 10000;
         private const int _maxNumber = 99999;
 
-        public readonly string Paylink;
+        public string Paylink { get; private set; }
 
         public OrderInfo() 
         {
