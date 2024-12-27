@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace Lesson
@@ -11,7 +12,10 @@ namespace Lesson
             Pathfinder pathfinder1 = new Pathfinder(new LoggerFriday(new FileLogger()));
             Pathfinder pathfinder2 = new Pathfinder(new ConsoleLogger());
             Pathfinder pathfinder3 = new Pathfinder(new FileLogger());
-            Pathfinder pathfinder4 = new Pathfinder(new MultiLogger(new ConsoleLogger(), new LoggerFriday(new ConsoleLogger())));
+            Pathfinder pathfinder4 = new Pathfinder(new MultiLogger(new ConsoleLogger(), new LoggerFriday(new FileLogger())));
+
+            pathfinder4.WriteLog("Лог");
+            Console.ReadKey();
         }
     }
 
