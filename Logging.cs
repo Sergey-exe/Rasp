@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+using System;
 using System.IO;
 
 namespace Lesson
@@ -12,40 +11,13 @@ namespace Lesson
             Pathfinder pathfinder1 = new Pathfinder(new LoggerFriday(new FileLogger()));
             Pathfinder pathfinder2 = new Pathfinder(new ConsoleLogger());
             Pathfinder pathfinder3 = new Pathfinder(new FileLogger());
-            Pathfinder pathfinder4 = new Pathfinder(new XConsoleLogger(new LoggerFriday(new ConsoleLogger())));
+            Pathfinder pathfinder4 = new Pathfinder(new MultiLogger(new ConsoleLogger(), new LoggerFriday(new ConsoleLogger())));
         }
     }
 
-    //class ConsoleLogWriter
-    //{
-    //    public virtual void WriteError(string message)
-    //    {
-    //        Console.WriteLine(message);
-    //    }
-    //}
-
-    //class FileLogWriter
-    //{
-    //    public virtual void WriteError(string message)
-    //    {
-    //        File.WriteAllText("log.txt", message);
-    //    }
-    //}
-
-    //class SecureConsoleLogWriter : ConsoleLogWriter
-    //{
-    //    public override void WriteError(string message)
-    //    {
-    //        if (DateTime.Now.DayOfWeek == DayOfWeek.Friday)
-    //        {
-    //            base.WriteError(message);
-    //        }
-    //    }
-    //}
-
     public interface ILogger
     {
-        void Find(string message);
+        void WriteLog(string message);
     }
 
     public class Pathfinder : ILogger
@@ -54,12 +26,20 @@ namespace Lesson
 
         public Pathfinder(ILogger logger)
         {
+            if (logger == null)
+                throw new ArgumentNullException();
+
             _logger = logger;
         }
 
-        public void Find(string log)
+        public void WriteLog(string log)
         {
-            _logger.Find(log);
+            _logger.WriteLog(log);
+        }
+
+        public void Find(float name)
+        {
+            _logger.WriteLog($"Выполнен поиск объекта {name}");
         }
     }
 
@@ -71,36 +51,41 @@ namespace Lesson
 
         public LoggerFriday(ILogger logger)
         {
+            if (logger == null)
+                throw new ArgumentNullException();
+
             _logger = logger;
         }
 
-        public virtual void Find(string log)
+        public virtual void WriteLog(string log)
         {
             if(IsFriday)
-                _logger.Find(log);
+                _logger.WriteLog(log);
         }
     }
 
-    public class XConsoleLogger : LogWriter
+    public class MultiLogger : LogWriter
     {
-        private ILogger _logger;
+        private ILogger[] _loggers;
 
-        public XConsoleLogger(ILogger logger)
+        public MultiLogger(params ILogger[] logger)
         {
-            _logger = logger;
+            if (logger == null)
+                throw new ArgumentNullException();
+
+            _loggers = logger;
         }
 
-        public override void Find(string log)
+        public override void WriteLog(string log)
         {
-            WriteConsoleLog(log);
-
-            _logger.Find(log);
+            foreach(var logger in _loggers)
+                logger.WriteLog(log);
         }
     }
 
     public class ConsoleLogger : LogWriter
     {
-        public override void Find(string log)
+        public override void WriteLog(string log)
         {
             WriteConsoleLog(log);
         }
@@ -108,7 +93,7 @@ namespace Lesson
 
     public class FileLogger : LogWriter
     {
-        public override void Find(string log)
+        public override void WriteLog(string log)
         {
             WriteFileLog(log);
         }
@@ -116,7 +101,7 @@ namespace Lesson
 
     public abstract class LogWriter : ILogger
     {
-        public abstract void Find(string log);
+        public abstract void WriteLog(string log);
 
         protected void WriteConsoleLog(string log)
         {
