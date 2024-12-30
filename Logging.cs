@@ -13,9 +13,6 @@ namespace Lesson
             Pathfinder pathfinder2 = new Pathfinder(new ConsoleLogger());
             Pathfinder pathfinder3 = new Pathfinder(new FileLogger());
             Pathfinder pathfinder4 = new Pathfinder(new MultiLogger(new ConsoleLogger(), new LoggerFriday(new FileLogger())));
-
-            pathfinder4.WriteLog("Лог");
-            Console.ReadKey();
         }
     }
 
@@ -68,7 +65,7 @@ namespace Lesson
         }
     }
 
-    public class MultiLogger : LogWriter
+    public class MultiLogger : ILogger
     {
         private ILogger[] _loggers;
 
@@ -80,39 +77,24 @@ namespace Lesson
             _loggers = logger;
         }
 
-        public override void WriteLog(string log)
+        public void WriteLog(string log)
         {
             foreach(var logger in _loggers)
                 logger.WriteLog(log);
-        }
+        } 
     }
 
-    public class ConsoleLogger : LogWriter
+    public class ConsoleLogger : ILogger
     {
-        public override void WriteLog(string log)
-        {
-            WriteConsoleLog(log);
-        }
-    }
-
-    public class FileLogger : LogWriter
-    {
-        public override void WriteLog(string log)
-        {
-            WriteFileLog(log);
-        }
-    }
-
-    public abstract class LogWriter : ILogger
-    {
-        public abstract void WriteLog(string log);
-
-        protected void WriteConsoleLog(string log)
+        public void WriteLog(string log)
         {
             Console.WriteLine(log);
         }
+    }
 
-        protected void WriteFileLog(string log)
+    public class FileLogger : ILogger
+    {
+        public void WriteLog(string log)
         {
             File.WriteAllText("log.txt", log);
         }
