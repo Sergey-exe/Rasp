@@ -8,9 +8,6 @@ class Program
         //pay.system1.ru/order?amount=12000RUB&hash={MD5 хеш ID заказа}
         //order.system2.ru/pay?hash={MD5 хеш ID заказа + сумма заказа}
         //system3.com/pay?amount=12000&curency=RUB&hash={SHA-1 хеш сумма заказа + ID заказа + секретный ключ от системы}
-        PayGetter1 payGetter1 = new PayGetter1();
-        Console.WriteLine(payGetter1.GetPayingLink(new Order(1, 1)));
-        Console.ReadKey();
     }
 }
 
