@@ -27,6 +27,9 @@ public class Order
 {
     public Order(int id, int amount)
     {
+        if (amount < 0)
+            throw new ArgumentOutOfRangeException();
+
         Id = id;
         Amount = amount;
     }
@@ -48,30 +51,36 @@ public interface IHashCreator
 
 public abstract class HashCreator : IHashCreator
 {
-    protected abstract byte[] HashData(byte[] bytes);
-
     public string GetStringHash(string line)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(line);
 
         return Encoding.UTF8.GetString(HashData(bytes));
     }
+
+    protected abstract byte[] HashData(byte[] bytes);
 }
 
-public class MD5HashCreator : HashCreator, IHashCreator
+public class MD5HashCreator : HashCreator
 {
     protected override byte[] HashData(byte[] bytes)
     {
+        if(bytes == null)
+            throw new ArgumentNullException();
+
         MD5 md5 = MD5.Create();
 
         return md5.ComputeHash(bytes);
     }
 }
 
-public class SHA1HashCreator : HashCreator, IHashCreator
+public class SHA1HashCreator : HashCreator
 {
     protected override byte[] HashData(byte[] bytes)
     {
+        if (bytes == null)
+            throw new ArgumentNullException();
+
         SHA1 sha1 = SHA1.Create();
 
         return sha1.ComputeHash(bytes);
