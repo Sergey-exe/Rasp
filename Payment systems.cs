@@ -25,11 +25,15 @@ class Program
 
 public class Order
 {
+    public Order(int id, int amount)
+    {
+        Id = id;
+        Amount = amount;
+    }
+
     public int Id { get; private set; }
 
     public int Amount { get; private set; }
-
-    public Order(int id, int amount) => (Id, Amount) = (id, amount);
 }
 
 public interface IPaymentSystem
@@ -74,11 +78,11 @@ public class SHA1HashCreator : HashCreator, IHashCreator
     }
 }
 
-public abstract class HashGetter
+public class PayGetter1 : IPaymentSystem
 {
     private IHashCreator _hashCreator;
 
-    public HashGetter(IHashCreator hashCreator)
+    public PayGetter1(IHashCreator hashCreator)
     {
         if (hashCreator == null)
             throw new ArgumentNullException();
@@ -86,47 +90,47 @@ public abstract class HashGetter
         _hashCreator = hashCreator;
     }
 
-    protected string GetLineHash(string line)
+    public string GetPayingLink(Order order)
     {
-        return _hashCreator.GetStringHash(line);
+        return $"pay.system1.ru/order?amount={order.Amount}RUB&hash={_hashCreator.GetStringHash((order.Id.ToString()))}";
     }
 }
 
-public class PayGetter1 : HashGetter,  IPaymentSystem
+public class PayGetter2 : IPaymentSystem
 {
-    public PayGetter1(IHashCreator hashCreator) : base(hashCreator)
+    private IHashCreator _hashCreator;
+
+    public PayGetter2(IHashCreator hashCreator)
     {
+        if (hashCreator == null)
+            throw new ArgumentNullException();
+
+        _hashCreator = hashCreator;
     }
 
     public string GetPayingLink(Order order)
     {
-        return $"pay.system1.ru/order?amount=12000RUB&hash={GetLineHash(order.Id.ToString())}";
+        return $"order.system2.ru/pay?hash={_hashCreator.GetStringHash(order.Id.ToString())}+{order.Amount}";
     }
 }
 
-public class PayGetter2 : HashGetter, IPaymentSystem
+public class PayGetter3 : IPaymentSystem
 {
-    public PayGetter2(IHashCreator hashCreator) : base(hashCreator)
-    {
-    }
+    private IHashCreator _hashCreator;
 
-    public string GetPayingLink(Order order)
-    {
-        return $"order.system2.ru/pay?hash={GetLineHash(order.Id.ToString())}+{order.Amount}";
-    }
-}
-
-public class PayGetter3 : HashGetter, IPaymentSystem
-{
     private readonly int Key;
 
-    public PayGetter3(int key, IHashCreator hashCreator) : base(hashCreator)
+    public PayGetter3(int key, IHashCreator hashCreator)
     {
+        if (hashCreator == null)
+            throw new ArgumentNullException();
+
+        _hashCreator = hashCreator;
         Key = key;
     }
 
     public string GetPayingLink(Order order)
     {
-        return $"system3.com/pay?amount=12000&curency=RUB&hash={GetLineHash(order.Amount.ToString())}+{order.Id}+{Key}";
+        return $"system3.com/pay?amount={order.Amount}&curency=RUB&hash={_hashCreator.GetStringHash(order.Amount.ToString())}+{order.Id}+{Key}";
     }
 }
