@@ -125,9 +125,9 @@ public class PayGetter2 : IPaymentSystem
 
 public class PayGetter3 : IPaymentSystem
 {
-    private IHashCreator _hashCreator;
+    private readonly int _key;
 
-    private readonly int Key;
+    private IHashCreator _hashCreator;
 
     public PayGetter3(int key, IHashCreator hashCreator)
     {
@@ -135,11 +135,11 @@ public class PayGetter3 : IPaymentSystem
             throw new ArgumentNullException();
 
         _hashCreator = hashCreator;
-        Key = key;
+        _key = key;
     }
 
     public string GetPayingLink(Order order)
     {
-        return $"system3.com/pay?amount={order.Amount}&curency=RUB&hash={_hashCreator.GetStringHash(order.Amount.ToString())}+{order.Id}+{Key}";
+        return $"system3.com/pay?amount={order.Amount}&curency=RUB&hash={_hashCreator.GetStringHash(order.Amount.ToString())}+{order.Id}+{_key}";
     }
 }
