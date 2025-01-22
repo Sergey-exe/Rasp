@@ -1,9 +1,9 @@
-    public static int ClampNumber(int speed, int time, int distance)
-    {
-        if (speed < time)
-            return time;
-        else if (speed > distance)
-            return distance;
-        else
-            return speed;
-    }
+public static int ClampNumber(int countKings, int countArchers, int countVehicles)
+{
+    if (countKings < countArchers)
+        return countArchers;
+    else if (countKings > countVehicles)
+        return countVehicles;
+    else
+        return countKings;
+}
