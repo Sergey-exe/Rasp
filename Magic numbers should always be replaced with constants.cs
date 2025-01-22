@@ -1,25 +1,26 @@
 class Weapon
 {
     private const int MinCountBullets = 0;
-    private const int CountBulletsInShoot = 1;
 
+    private int _countBulletsInShoot = 1;
     private int _countBullets;
 
     public Weapon(int countBullets)
     {
-        if (countBullets < MinCountBullets)
-            throw new ArgumentOutOfRangeException(nameof(countBullets));
-
         _countBullets = countBullets;
+
+        if (IsCorrectCountBullets)
+            throw new ArgumentOutOfRangeException(nameof(countBullets));
     }
 
     public bool CanShoot => _countBullets > MinCountBullets;
+    private bool IsCorrectCountBullets => _countBullets >= MinCountBullets;
 
     public void Shoot()
     {
-        if (_countBullets < MinCountBullets)
+        if (IsCorrectCountBullets)
             throw new InvalidOperationException();
 
-        _countBullets -= CountBulletsInShoot;
+        _countBullets -= _countBulletsInShoot;
     }
 }
