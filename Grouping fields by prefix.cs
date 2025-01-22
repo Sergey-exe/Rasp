@@ -1,28 +1,19 @@
 class Player
 {
+    private readonly string _name;
+    private readonly int _age;
+
     private Mover _mover;
     private Shooter _shooter;
 
-    public Player(Mover mover, Shooter shooter, string name, int age) 
+    public Player(string name, int age)
     {
-        if (mover == null)
-            throw new ArgumentNullException();
+        _mover = new Mover(5, -5, 15);
+        _shooter = new Shooter(0.5f, 25);
 
-        if (shooter == null)
-            throw new ArgumentNullException();
-
-        if (age < 0)
-            throw new ArgumentOutOfRangeException();
-
-        _mover = mover;
-        _shooter = shooter;
-        Name = name;
-        Age = age;
+        _name = name;
+        _age = age;
     }
-
-    public string Name { get; private set; }
-
-    public int Age { get; private set; }
 
     private void Move()
     {
@@ -39,6 +30,15 @@ public class Mover
 {
     public Mover(float movementDirectionX, float movementDirectionY, float movementSpeed)
     {
+        if (movementDirectionX <= 0)
+            throw new ArgumentOutOfRangeException();
+
+        if (movementDirectionY <= 0)
+            throw new ArgumentOutOfRangeException();
+
+        if (movementSpeed < 0)
+            throw new ArgumentOutOfRangeException();
+
         MovementDirectionX = movementDirectionX;
         MovementDirectionY = movementDirectionY;
         MovementSpeed = movementSpeed;
