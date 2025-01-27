@@ -6,194 +6,189 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Data.Sqlite;
 
-public partial class Program
+class Program
 {
     public static void Main()
     {
-        MessageBox messageBox = new MessageBox();
-        TextBox textBox = new TextBox(Console.ReadLine());
-        View view = new View(messageBox, textBox);
-        DataBase dataBase = new DataBase();
-        Presenter presenter = new Presenter(view, dataBase);
-        view.ButtinCilcked();
+        DataBaseConnector connector = new DataBaseConnector();
+        PresenterFactory presenterFactory = new PresenterFactory();
+        PassportView passportView = new PassportView(presenterFactory);
 
         Console.ReadKey();
     }
 }
 
-public class View
+public interface IView
 {
-    private MessageBox _messageBox;
-    private TextBox _passportTextBox;
+    void SetText(string text);
+}
 
-    public Action ButtinCilcked;
-
-    public View(MessageBox messageBox, TextBox textBox)
+public class PresenterFactory
+{
+    public Presenter Create(IView view)
     {
-        _messageBox = messageBox ?? throw new ArgumentNullException();
-        _passportTextBox = textBox ?? throw new ArgumentNullException();
+        if (view == null)
+            throw new ArgumentNullException();
+
+        return new Presenter(view);
+    }
+}
+
+public class PassportView : IView
+{
+    private TextBox _passportTextbox;
+    private TextBox _textResult;
+    private Presenter _presenter;
+
+    public PassportView(PresenterFactory presenterFactory)
+    {
+        if (presenterFactory == null)
+            throw new ArgumentNullException();
+
+        _presenter = presenterFactory.Create(this);
+
+        _passportTextbox = new TextBox();
+        _textResult = new TextBox();
     }
 
-    public void OnClick()
+    public void OnButtonClick()
     {
-        ButtinCilcked?.Invoke();
+        _passportTextbox.Trim();
+        _presenter.TryFindPassportInDatatable(_passportTextbox.Text);
     }
 
-    public string GetTextBoxText()
+    public void SetText(string text)
     {
-        return _passportTextBox.Trim();
-    }
-
-    public void Show(string text)
-    {
-        _messageBox.Show(text);
+        _textResult.SetText(text);
     }
 }
 
 public class Presenter
 {
-    private const int MinCountSymbols = 10;
+    private IView _view;
+    private DataBaseConnector _connector;
+    private DataBase _dataBase;
 
-    private View _view;
-    private DataBase _database;
-
-    public Action<string> TextChanged;
-
-    public Presenter(View view, DataBase database)
+    public Presenter (IView view)
     {
         _view = view ?? throw new ArgumentNullException();
-        _database = database ?? throw new ArgumentNullException();
-
-        _view.ButtinCilcked += GrantAccess;
-        TextChanged += _view.Show;
+        _connector = new DataBaseConnector();
+        _dataBase = new DataBase();
     }
 
-    public void GrantAccess()
+    public void TryFindPassportInDatatable(string rawData)
     {
-        string rawData = _view.GetTextBoxText();
+        if (rawData == string.Empty)
+            SetMessagePassportTextNotFound();
 
-        if (ThereSeries(rawData) == false)
-            return;
+        Passport passport = new Passport(rawData);
 
-        if (IsCorrectSeries(rawData) == false)
-            return;
+        SqliteConnection connection = _connector.GetConnection();
 
-        if (int.TryParse(rawData, out int series) == false)
+        string commandText = SQLUtils.FormatToCommandText(rawData);
+
+        if (_dataBase.TryProvideAccess(commandText, connection, out bool IsPassportFound))
         {
-            TextChanged?.Invoke("Серия и номер должны содержать только арабские цифры!");
+            connection.Close();
+
+            if (IsPassportFound)
+                SetMessagePassportNotFound(rawData);
+
+            SetMessageAccessNotGranted(rawData);
 
             return;
         }
 
-        Passport passport = new Passport(series);
-
-        _database.GrantAccess(rawData, passport);
+        SetMessageAccessGranted(rawData);
     }
 
-    private bool ThereSeries(string series)
+    private void SetMessagePassportTextNotFound()
     {
-        if (series == string.Empty)
+        _view.SetText("Введите серию и номер паспорта");
+
+        throw new ArgumentNullException();
+    }
+
+    private void SetMessageInvalidConnection()
+    {
+        _view.SetText("Ошибка соединения");
+
+        throw new InvalidOperationException();
+    }
+
+    private void SetMessagePassportNotFound(string rawData)
+    {
+        _view.SetText($"Паспорт «{rawData}» в списке участников дистанционного голосования НЕ НАЙДЕН");
+    }
+
+    private void SetMessageAccessGranted(string rawData)
+    {
+        _view.SetText($"По паспорту «{rawData}» доступ к бюллетеню на дистанционном электронном голосовании ПРЕДОСТАВЛЕН");
+    }
+
+    private void SetMessageAccessNotGranted(string rawData)
+    {
+        _view.SetText($"По паспорту «{rawData}» доступ к бюллетеню на дистанционном электронном голосовании НЕ ПРЕДОСТАВЛЯЛСЯ");
+    }
+}
+
+public class DataBaseConnector
+{
+    private SqliteConnection _connection;
+    private DataBase _dataBase;
+
+    private bool _connected;
+
+    public SqliteConnection GetConnection()
+    {
+        try
         {
-            TextChanged?.Invoke("Введите серию и номер паспорта!");
+            _connection = new SqliteConnection(SQLUtils.GetConnectionLine());
+            _connection.Open();
+            _connected = true;
 
-            return false;
+            return _connection;
         }
-
-        return true;
-    }
-
-    private bool IsCorrectSeries(string series)
-    {
-        if (series.Length < MinCountSymbols)
+        catch (SQLiteException sQLiteException)
         {
-            TextChanged?.Invoke("Неверный формат серии или номера паспорта");
+            if (sQLiteException.ErrorCode == 1)
+                MessageBox.Show("Файл db.sqlite не найден. Положите файл в папку вместе с exe.");
 
-            return false;
+            throw new ArgumentException();
         }
-
-        return true;
     }
 
-    private void OnDisable()
+    public void Close()
     {
-        _view.ButtinCilcked -= GrantAccess;
-        TextChanged -= _view.Show;
+        if (_connected)
+            _connection.Close();
     }
 }
 
 public class DataBase
 {
-    private SqliteConnector _connector;
+    private DataTable _dataTable;
 
-    public Action<string> TextChanged;
-
-    public DataBase()
+    public bool TryProvideAccess(string commandText, SqliteConnection connection, out bool IsPassportFound)
     {
-        _connector = new SqliteConnector();
-    }
+        SQLiteDataAdapter sqLiteDataAdapter = new SQLiteDataAdapter(new SQLiteCommand(commandText, connection));
+        sqLiteDataAdapter.Fill(_dataTable);
 
-    public void GrantAccess(string rawData, Passport passport)
-    {
-        int row = 0;
-        int index = 1;
-
-        try
+        if (_dataTable.Rows.Count > 0)
         {
-            SQLiteDataAdapter sQLiteDataAdapter = _connector.Connect(rawData);
-
-            DataTable dataTable1 = new DataTable();
-            DataTable dataTable2 = dataTable1;
-
-            sQLiteDataAdapter.Fill(dataTable2);
-
-            if (dataTable1.Rows.Count > 0)
-            {
-                if (Convert.ToBoolean(dataTable1.Rows[row].ItemArray[index]))
-                    TextChanged.Invoke($"По паспорту «{passport.Series}» доступ к бюллетеню на дистанционном электронном голосовании ПРЕДОСТАВЛЕН");
-                else
-                    TextChanged.Invoke($"По паспорту «{passport.Series}» доступ к бюллетеню на дистанционном электронном голосовании НЕ ПРЕДОСТАВЛЯЛСЯ");
-
-                _connector.Close();
-            }
-            else
-            {
-                TextChanged.Invoke($"Паспорт «{passport.Series}» в списке участников дистанционного голосования НЕ НАЙДЕН");
-            }
+            IsPassportFound = true;
         }
-        catch (SQLiteException exception)
+        else
         {
-            if (exception.ErrorCode == 1)
-                TextChanged.Invoke("Файл db.sqlite не найден. Положите файл в папку вместе с exe.");
+            IsPassportFound = false;
+
+            return false;
         }
-    }
-}
 
-public class SqliteConnector
-{
-    SqliteConnection _connection;
-
-    public SqliteConnector()
-    {
-    }
-
-    public SQLiteDataAdapter Connect(string rawData)
-    {
-        string connectionLine = SQLUtils.GetConnectionLine();
-        string commandText = SQLUtils.FormatToCommandText(rawData);
-
-        _connection = new SqliteConnection(connectionLine);
-
-        _connection.Open();
-
-        return new SQLiteDataAdapter(new SQLiteCommand(commandText, _connection));
-    }
-
-    public void Close()
-    {
-        if (_connection == null)
-            throw new ArgumentNullException();
-
-        _connection.Close();
+        if (Convert.ToBoolean(_dataTable.Rows[0].ItemArray[1]))
+            return true;
+        else
+            return false;
     }
 }
 
@@ -227,22 +222,41 @@ public class SQLiteCommand
 
 public class Passport
 {
-    public Passport(int series)
+    private const int MinCountSymbols = 10;
+
+    public Passport(string series)
     {
-        Series = series;
+        if (series.Length < MinCountSymbols)
+        {
+            MessageBox.Show("Неверный формат серии или номера паспорта!");
+
+            throw new ArgumentException(nameof(series));
+        }
+
+        if (int.TryParse(series, out int convertSeries) == false)
+        {
+            MessageBox.Show("Серия и номер могут содержать только арабские цифры!");
+
+            throw new InvalidOperationException(nameof(series));
+        }
+
+        Series = convertSeries;
     }
 
     public int Series { get; }
 }
 
-public class TextBox
+public static class MessageBox
 {
-    public TextBox(string text)
+    public static void Show(string text)
     {
-        Text = text;
+        Console.WriteLine(text);
     }
+}
 
-    public string Text { get; }
+public class TextBox : IView
+{
+    public string Text { get; private set; }
 
     public string Trim()
     {
@@ -257,13 +271,10 @@ public class TextBox
 
         return line;
     }
-}
 
-public class MessageBox
-{
-    public void Show(string text)
+    public void SetText(string text)
     {
-        Console.WriteLine(text);
+        Text = text;
     }
 }
 
@@ -282,11 +293,6 @@ public class SQLUtils
     }
 }
 
-public class SQLiteException : Exception
-{
-    public int ErrorCode { get; private set; }
-}
-
 public class SHAHasher
 {
     public string GetStringHash(string line)
@@ -297,4 +303,9 @@ public class SHAHasher
 
         return Encoding.UTF8.GetString(sha256.ComputeHash(bytes));
     }
+}
+
+public class SQLiteException : Exception
+{
+    public int ErrorCode { get; private set; }
 }
