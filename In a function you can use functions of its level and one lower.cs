@@ -37,7 +37,7 @@ public class PassportView : IView
     public void OnButtonClick()
     {
         _passportTextbox.SetText(Console.ReadLine());
-        _presenter.TryFindPassportInDataTable(_passportTextbox.Trim());
+        _presenter.TryFindPassportInDataTable(_passportTextbox.Text);
     }
 
     public void SetText(string text)
@@ -52,9 +52,10 @@ public class Presenter
     private CitizenService _citizenService;
     private IView _view;
 
-    public Presenter(IView view)
+    public Presenter(IView view, CitizenService citizenService)
     {
         _view = view ?? throw new ArgumentNullException();
+        _citizenService = citizenService ?? throw new ArgumentNullException();
     }
 
     public void TryFindPassportInDataTable(string rawData)
@@ -74,7 +75,7 @@ public class Presenter
                     return;
 
                 case false:
-                    SetMessageAccessGranted(rawData);
+                    SetMessageAccessNotGranted(rawData);
                     return;
             }
         }
@@ -107,7 +108,9 @@ public class PresenterFactory
         if (view == null)
             throw new ArgumentNullException();
 
-        return new Presenter(view);
+        var citizenService = new CitizenService();
+
+        return new Presenter(view, citizenService);
     }
 }
 
@@ -130,23 +133,9 @@ public class TextBox : IView
 {
     public string Text { get; private set; }
 
-    public string Trim()
-    {
-        char trimSymbol = ' ';
-        string line = string.Empty;
-
-        for (int i = 0; i < Text.Length; i++)
-        {
-            if (Text[i] != trimSymbol)
-                line += Text[i];
-        }
-
-        return line;
-    }
-
     public void SetText(string text)
     {
-        Text = text;
+        Text = text.Trim();
     }
 }
 
@@ -156,7 +145,7 @@ public class CitizenService
 
     public bool? TryShowPassport(string rawData)
     {
-        DataTable dataTable = _dataBase.OpenDatatable(SHAHasher.GetStringHash(rawData));
+        DataTable dataTable = _dataBase.OpenDataTable(SHAHasher.GetStringHash(rawData));
 
         if (dataTable.Rows.Count < 0)
             return null;
@@ -170,7 +159,7 @@ public class CitizenService
 
 public class DataBase
 {
-    public DataTable OpenDatatable(string hash)
+    public DataTable OpenDataTable(string hash)
     {
         string command = SQLUtils.FormatToCommandText(hash);
         string connectionString = SQLUtils.GetConnectionLine();
@@ -181,22 +170,20 @@ public class DataBase
             connection.Open();
 
             SQLiteDataAdapter adapter = new SQLiteDataAdapter(new SQLiteCommand(command, connection));
+            DataTable dataTable = new DataTable();
 
-            DataTable dataTable1 = new DataTable();
-            DataTable dataTable2 = dataTable1;
-
-            adapter.Fill(dataTable2);
+            adapter.Fill(dataTable);
 
             connection.Close();
 
-            return dataTable1;
+            return dataTable;
         }
         catch (SQLiteException exception)
         {
             if (exception.ErrorCode == 1)
                 throw new InvalidOperationException("Файл db.sqlite не найден. Положите файл в папку вместе с exe.");
 
-            throw new Exception("Возникла неизвестная ошибка");
+            throw;
         }
     }
 }
