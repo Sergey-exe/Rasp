@@ -10,27 +10,10 @@ class Program
 {
     public static void Main()
     {
-        DataBaseConnector connector = new DataBaseConnector();
-        PresenterFactory presenterFactory = new PresenterFactory();
-        PassportView passportView = new PassportView(presenterFactory);
+        PassportView passportView = new PassportView(new PresenterFactory());
+        passportView.OnButtonClick();
 
         Console.ReadKey();
-    }
-}
-
-public interface IView
-{
-    void SetText(string text);
-}
-
-public class PresenterFactory
-{
-    public Presenter Create(IView view)
-    {
-        if (view == null)
-            throw new ArgumentNullException();
-
-        return new Presenter(view);
     }
 }
 
@@ -53,67 +36,52 @@ public class PassportView : IView
 
     public void OnButtonClick()
     {
-        _passportTextbox.Trim();
-        _presenter.TryFindPassportInDatatable(_passportTextbox.Text);
+        _passportTextbox.SetText(Console.ReadLine());
+        _presenter.TryFindPassportInDataTable(_passportTextbox.Trim());
     }
 
     public void SetText(string text)
     {
         _textResult.SetText(text);
+        Console.WriteLine(text);
     }
 }
 
 public class Presenter
 {
+    private CitizenService _citizenService;
     private IView _view;
-    private DataBaseConnector _connector;
-    private DataBase _dataBase;
 
-    public Presenter (IView view)
+    public Presenter(IView view)
     {
         _view = view ?? throw new ArgumentNullException();
-        _connector = new DataBaseConnector();
-        _dataBase = new DataBase();
     }
 
-    public void TryFindPassportInDatatable(string rawData)
+    public void TryFindPassportInDataTable(string rawData)
     {
-        if (rawData == string.Empty)
-            SetMessagePassportTextNotFound();
-
-        Passport passport = new Passport(rawData);
-
-        SqliteConnection connection = _connector.GetConnection();
-
-        string commandText = SQLUtils.FormatToCommandText(rawData);
-
-        if (_dataBase.TryProvideAccess(commandText, connection, out bool IsPassportFound))
+        try
         {
-            connection.Close();
+            Passport passport = new Passport(rawData);
 
-            if (IsPassportFound)
-                SetMessagePassportNotFound(rawData);
+            switch (_citizenService.TryShowPassport(passport.Series.ToString()))
+            {
+                case null:
+                    SetMessagePassportNotFound(rawData);
+                    return;
 
-            SetMessageAccessNotGranted(rawData);
+                case true:
+                    SetMessageAccessGranted(rawData);
+                    return;
 
-            return;
+                case false:
+                    SetMessageAccessGranted(rawData);
+                    return;
+            }
         }
-
-        SetMessageAccessGranted(rawData);
-    }
-
-    private void SetMessagePassportTextNotFound()
-    {
-        _view.SetText("Введите серию и номер паспорта");
-
-        throw new ArgumentNullException();
-    }
-
-    private void SetMessageInvalidConnection()
-    {
-        _view.SetText("Ошибка соединения");
-
-        throw new InvalidOperationException();
+        catch (Exception exception)
+        {
+            _view.SetText(exception.Message);
+        }
     }
 
     private void SetMessagePassportNotFound(string rawData)
@@ -132,91 +100,14 @@ public class Presenter
     }
 }
 
-public class DataBaseConnector
+public class PresenterFactory
 {
-    private SqliteConnection _connection;
-    private DataBase _dataBase;
-
-    private bool _connected;
-
-    public SqliteConnection GetConnection()
+    public Presenter Create(IView view)
     {
-        try
-        {
-            _connection = new SqliteConnection(SQLUtils.GetConnectionLine());
-            _connection.Open();
-            _connected = true;
+        if (view == null)
+            throw new ArgumentNullException();
 
-            return _connection;
-        }
-        catch (SQLiteException sQLiteException)
-        {
-            if (sQLiteException.ErrorCode == 1)
-                MessageBox.Show("Файл db.sqlite не найден. Положите файл в папку вместе с exe.");
-
-            throw new ArgumentException();
-        }
-    }
-
-    public void Close()
-    {
-        if (_connected)
-            _connection.Close();
-    }
-}
-
-public class DataBase
-{
-    private DataTable _dataTable;
-
-    public bool TryProvideAccess(string commandText, SqliteConnection connection, out bool IsPassportFound)
-    {
-        SQLiteDataAdapter sqLiteDataAdapter = new SQLiteDataAdapter(new SQLiteCommand(commandText, connection));
-        sqLiteDataAdapter.Fill(_dataTable);
-
-        if (_dataTable.Rows.Count > 0)
-        {
-            IsPassportFound = true;
-        }
-        else
-        {
-            IsPassportFound = false;
-
-            return false;
-        }
-
-        if (Convert.ToBoolean(_dataTable.Rows[0].ItemArray[1]))
-            return true;
-        else
-            return false;
-    }
-}
-
-public class SQLiteDataAdapter
-{
-    private SQLiteCommand _command;
-
-    public SQLiteDataAdapter(SQLiteCommand command)
-    {
-        _command = command ?? throw new ArgumentNullException();
-    }
-
-    public void Fill(DataTable dataTable)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-public class SQLiteCommand
-{
-    string _commandText;
-
-    SqliteConnection _connection;
-
-    public SQLiteCommand(string commandText, SqliteConnection connection)
-    {
-        _commandText = commandText;
-        _connection = connection ?? throw new ArgumentNullException();
+        return new Presenter(view);
     }
 }
 
@@ -227,31 +118,12 @@ public class Passport
     public Passport(string series)
     {
         if (series.Length < MinCountSymbols)
-        {
-            MessageBox.Show("Неверный формат серии или номера паспорта!");
+            throw new ArgumentException("Неверный формат серии или номера паспорта!");
 
-            throw new ArgumentException(nameof(series));
-        }
-
-        if (int.TryParse(series, out int convertSeries) == false)
-        {
-            MessageBox.Show("Серия и номер могут содержать только арабские цифры!");
-
-            throw new InvalidOperationException(nameof(series));
-        }
-
-        Series = convertSeries;
+        Series = series;
     }
 
-    public int Series { get; }
-}
-
-public static class MessageBox
-{
-    public static void Show(string text)
-    {
-        Console.WriteLine(text);
-    }
+    public string Series { get; }
 }
 
 public class TextBox : IView
@@ -278,13 +150,95 @@ public class TextBox : IView
     }
 }
 
-public class SQLUtils
+public class CitizenService
 {
-    public static string FormatToCommandText(string rawData)
-    {
-        SHAHasher hasher = new SHAHasher();
+    private DataBase _dataBase;
 
-        return string.Format("select * from passports where num='{0}' limit 1;", hasher.GetStringHash(rawData));
+    public bool? TryShowPassport(string rawData)
+    {
+        DataTable dataTable = _dataBase.OpenDatatable(SHAHasher.GetStringHash(rawData));
+
+        if (dataTable.Rows.Count < 0)
+            return null;
+
+        if (Convert.ToBoolean(dataTable.Rows[0].ItemArray[1]))
+            return true;
+
+        return false;
+    }
+}
+
+public class DataBase
+{
+    public DataTable OpenDatatable(string hash)
+    {
+        string command = SQLUtils.FormatToCommandText(hash);
+        string connectionString = SQLUtils.GetConnectionLine();
+
+        try
+        {
+            SqliteConnection connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            SQLiteDataAdapter adapter = new SQLiteDataAdapter(new SQLiteCommand(command, connection));
+
+            DataTable dataTable1 = new DataTable();
+            DataTable dataTable2 = dataTable1;
+
+            adapter.Fill(dataTable2);
+
+            connection.Close();
+
+            return dataTable1;
+        }
+        catch (SQLiteException exception)
+        {
+            if (exception.ErrorCode == 1)
+                throw new InvalidOperationException("Файл db.sqlite не найден. Положите файл в папку вместе с exe.");
+
+            throw new Exception("Возникла неизвестная ошибка");
+        }
+    }
+}
+
+public interface IView
+{
+    void SetText(string message);
+}
+
+public class SQLiteDataAdapter
+{
+    private SQLiteCommand _command;
+
+    public SQLiteDataAdapter(SQLiteCommand command)
+    {
+        _command = command ?? throw new ArgumentNullException();
+    }
+
+    public void Fill(DataTable dataTable)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class SQLiteCommand
+{
+    private string _commandText;
+
+    private SqliteConnection _connection;
+
+    public SQLiteCommand(string commandText, SqliteConnection connection)
+    {
+        _commandText = commandText;
+        _connection = connection ?? throw new ArgumentNullException();
+    }
+}
+
+public static class SQLUtils
+{
+    public static string FormatToCommandText(string hash)
+    {
+        return string.Format("select * from passports where num='{0}' limit 1;", hash);
     }
 
     public static string GetConnectionLine()
@@ -293,9 +247,9 @@ public class SQLUtils
     }
 }
 
-public class SHAHasher
+public static class SHAHasher
 {
-    public string GetStringHash(string line)
+    public static string GetStringHash(string line)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(line);
 
