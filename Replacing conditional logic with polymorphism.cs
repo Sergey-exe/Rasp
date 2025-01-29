@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace IMJunior
 {
@@ -7,18 +8,18 @@ namespace IMJunior
         static void Main(string[] args)
         {
             var presenterFactory = new PresenterFactory();
-            var view = new View(presenterFactory);
+            var view = new OrderView(presenterFactory);
             view.ShowForm();
 
             Console.ReadKey();
         }
     }
 
-    public class View
+    public class OrderView
     {
         private Presenter _presenter;
 
-        public View(PresenterFactory presenterFactory)
+        public OrderView(PresenterFactory presenterFactory)
         {
             if (presenterFactory == null)
                 throw new ArgumentNullException();
@@ -28,10 +29,7 @@ namespace IMJunior
 
         public void ShowForm()
         {
-            ShowInfo("Мы принимаем: QIWI, WebMoney, Card");
-            //симуляция веб интерфейса
-            ShowInfo("Какое системой вы хотите совершить оплату?");
-
+            _presenter.Start();
             _presenter.TryPay(Console.ReadLine());
         }
 
@@ -44,12 +42,18 @@ namespace IMJunior
     public class Presenter
     {
         private PayService _payService;
-        private View _view;
+        private OrderView _view;
 
-        public Presenter(View view)
+        public Presenter(OrderView view)
         {
             _view = view ?? throw new ArgumentNullException();
             _payService = new PayService();
+        }
+
+        public void Start()
+        {
+            _view.ShowInfo($"Мы принимаем: {_payService.GetServicesNames()}");
+            _view.ShowInfo("Какое системой вы хотите совершить оплату?");
         }
 
         public void TryPay(string command)
@@ -78,30 +82,34 @@ namespace IMJunior
         private const string CommandWebMoney = "WebMoney";
         private const string CommandCard = "Card";
 
+        private readonly Dictionary<string, IPaymentSystem> _systems;
+
+        public PayService()
+        {
+            _systems = new Dictionary<string, IPaymentSystem>()
+            {
+                { CommandQIWI, new QIWISystem() },
+                { CommandWebMoney, new WebMoneySystem() },
+                { CommandCard, new CardSystem() },
+            };
+        }
+
         public void TryPay(string command)
         {
             IPaymentSystem paymentSystem;
 
-            switch (command)
-            {
-                default:
-                    throw new ArgumentException("Попробуйте выбрать другую платёжную систему");
+            if (_systems.ContainsKey(command) == false)
+                throw new ArgumentException("Попробуйте выбрать другую платёжную систему");
 
-                case CommandQIWI:
-                    paymentSystem = new QIWISystem();
-                    break;
-
-                case CommandWebMoney:
-                    paymentSystem = new WebMoneySystem();
-                    break;
-
-                case CommandCard:
-                    paymentSystem = new CardSystem();
-                    break;
-            }
+            paymentSystem = _systems[command];
 
             if (paymentSystem.Payment() == false)
                 throw new InvalidOperationException("К сожалению оплата не прошла! Попробуйте ещё раз или напишите в техподдержку");
+        }
+
+        public string GetServicesNames()
+        {
+            return $"{CommandQIWI} {CommandWebMoney} {CommandCard}";
         }
     }
 
@@ -139,7 +147,7 @@ namespace IMJunior
 
     public class PresenterFactory
     {
-        public Presenter Create(View view)
+        public Presenter Create(OrderView view)
         {
             if (view == null)
                 throw new ArgumentNullException();
