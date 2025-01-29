@@ -7,72 +7,10 @@ namespace IMJunior
     {
         static void Main(string[] args)
         {
-            var presenterFactory = new PresenterFactory();
-            var view = new OrderView(presenterFactory);
-            view.ShowForm();
+            PayService payService = new PayService();
+            payService.Pay(Console.ReadLine());
 
             Console.ReadKey();
-        }
-    }
-
-    public class OrderView
-    {
-        private Presenter _presenter;
-
-        public OrderView(PresenterFactory presenterFactory)
-        {
-            if (presenterFactory == null)
-                throw new ArgumentNullException();
-
-            _presenter = presenterFactory.Create(this);
-        }
-
-        public void ShowForm()
-        {
-            _presenter.Start();
-            _presenter.TryPay(Console.ReadLine());
-        }
-
-        public void ShowInfo(string text)
-        {
-            Console.WriteLine(text);
-        }
-    }
-
-    public class Presenter
-    {
-        private PayService _payService;
-        private OrderView _view;
-
-        public Presenter(OrderView view)
-        {
-            _view = view ?? throw new ArgumentNullException();
-            _payService = new PayService();
-        }
-
-        public void Start()
-        {
-            _view.ShowInfo($"Мы принимаем: {_payService.GetServicesNames()}");
-            _view.ShowInfo("Какое системой вы хотите совершить оплату?");
-        }
-
-        public void TryPay(string command)
-        {
-            _view.ShowInfo($"Вызов вашей системы платежа...");
-
-            try
-            {
-                _view.ShowInfo($"Вы оплатили с помощью {command}\nПроверка платежа через {command}...");
-                _payService.TryPay(command);
-            }
-            catch (Exception exception)
-            {
-                _view.ShowInfo(exception.Message);
-
-                return;
-            }
-
-            _view.ShowInfo("Оплата прошла успешно!");
         }
     }
 
@@ -82,40 +20,76 @@ namespace IMJunior
         private const string CommandWebMoney = "WebMoney";
         private const string CommandCard = "Card";
 
-        private IReadOnlyDictionary<string, IPaymentSystem> _systems;
+        private IReadOnlyDictionary<string, IPaymentSystemFactory> _paymentFactories;
 
         public PayService()
         {
-            _systems = new Dictionary<string, IPaymentSystem>()
+            _paymentFactories = new Dictionary<string, IPaymentSystemFactory>()
             {
-                { CommandQIWI, new QIWISystem() },
-                { CommandWebMoney, new WebMoneySystem() },
-                { CommandCard, new CardSystem() },
+                { CommandQIWI, new QIWIFactory() },
+                { CommandWebMoney, new WebMoneyFactory() },
+                { CommandCard, new CardFactory() },
             };
         }
 
-        public void TryPay(string command)
+        public void Pay(string command)
         {
-            IPaymentSystem paymentSystem;
-
-            if (_systems.ContainsKey(command) == false)
+            if (_paymentFactories.ContainsKey(command) == false)
                 throw new ArgumentException("Попробуйте выбрать другую платёжную систему");
 
-            paymentSystem = _systems[command];
-
-            if (paymentSystem.Payment() == false)
-                throw new InvalidOperationException("К сожалению оплата не прошла! Попробуйте ещё раз или напишите в техподдержку");
-        }
-
-        public string GetServicesNames()
-        {
-            return $"{CommandQIWI} {CommandWebMoney} {CommandCard}";
+            PaymentHandler paymentHandler = new PaymentHandler(_paymentFactories[command]);
+            paymentHandler.Pay();
         }
     }
 
-    public interface IPaymentSystem
+    public class PaymentHandler
     {
-        bool Payment();
+        private IPaymentSystem _paymentSystem;
+
+        public PaymentHandler(IPaymentSystemFactory paymentFactory)
+        {
+            if (paymentFactory == null)
+                throw new ArgumentNullException();
+
+            _paymentSystem = paymentFactory.Create();
+        }
+
+        public void Pay()
+        {
+            if (_paymentSystem == null)
+                throw new ArgumentNullException();
+
+            _paymentSystem.Payment();
+        }
+    }
+
+    public class QIWIFactory : IPaymentSystemFactory
+    {
+        public IPaymentSystem Create()
+        {
+            return new QIWISystem();
+        }
+    }
+
+    public class WebMoneyFactory : IPaymentSystemFactory
+    {
+        public IPaymentSystem Create()
+        {
+            return new WebMoneySystem();
+        }
+    }
+
+    public class CardFactory : IPaymentSystemFactory
+    {
+        public IPaymentSystem Create()
+        {
+            return new CardSystem();
+        }
+    }
+
+    public interface IPaymentSystemFactory
+    {
+        IPaymentSystem Create();
     }
 
     public class QIWISystem : IPaymentSystem
@@ -145,14 +119,8 @@ namespace IMJunior
         }
     }
 
-    public class PresenterFactory
+    public interface IPaymentSystem
     {
-        public Presenter Create(OrderView view)
-        {
-            if (view == null)
-                throw new ArgumentNullException();
-
-            return new Presenter(view);
-        }
+        bool Payment();
     }
 }
