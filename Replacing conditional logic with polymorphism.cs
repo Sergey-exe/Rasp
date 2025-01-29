@@ -82,7 +82,7 @@ namespace IMJunior
         private const string CommandWebMoney = "WebMoney";
         private const string CommandCard = "Card";
 
-        private readonly Dictionary<string, IPaymentSystem> _systems;
+        private IReadOnlyDictionary<string, IPaymentSystem> _systems;
 
         public PayService()
         {
