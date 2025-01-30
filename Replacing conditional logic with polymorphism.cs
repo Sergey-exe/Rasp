@@ -29,7 +29,7 @@ namespace IMJunior
 
         public void ShowInfo(string text)
         {
-            Console.Write(text);
+            Console.WriteLine(text);
         }
     }
 
@@ -72,15 +72,15 @@ namespace IMJunior
             if (_paymentFactories.ContainsKey(command) == false)
                 throw new ArgumentException("Попробуйте выбрать другую платёжную систему");
 
-            _orderForm.ShowInfo($"Связь с банком {_paymentFactories[command]}...");
+            _orderForm.ShowInfo($"Связь с банком {command}...");
             PaymentHandler paymentHandler = new PaymentHandler(_paymentFactories[command]);
 
-            _orderForm.ShowInfo($"Проверка платежа через {_paymentFactories[command]}...");
+            _orderForm.ShowInfo($"Проверка платежа через {command}...");
 
-            if (paymentHandler.Pay())
-                _orderForm.ShowInfo("Оплата прошла успешно!");
+            if (paymentHandler.Pay() == false)
+                throw new InvalidOperationException("К сожалению, оплата не прошла. Попробуйте ещё раз, или напишите в техподдержку");
 
-            throw new InvalidOperationException("К сожалению, оплата не прошла. Попробуйте ещё раз, или напишите в техподдержку");
+            _orderForm.ShowInfo("Оплата прошла успешно!");
         }
     }
 
